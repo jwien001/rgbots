@@ -18,6 +18,8 @@ develop-eggs
 .installed.cfg
 lib
 lib64
+local
+include
 __pycache__
 
 # Installer logs
@@ -35,3 +37,6 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# rgbot
+rgkit
