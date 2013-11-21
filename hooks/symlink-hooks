@@ -1,0 +1,15 @@
+#!/bin/sh
+
+GIT_DIR=$(git rev-parse --show-toplevel)
+HOOKS=$GIT_DIR'/hooks/*'
+THIS_FILE=$GIT_DIR'/hooks/'`basename $0`
+GIT_HOOKS=$GIT_DIR'/.git/hooks/'
+
+for f in $HOOKS
+do
+    if [ "$f" != "$THIS_FILE" ]
+    then
+        ln -s -f $f $GIT_HOOKS
+        chmod +x $f
+    fi
+done

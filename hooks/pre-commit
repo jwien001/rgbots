@@ -1,0 +1,86 @@
+#!/bin/bash
+
+failures=0
+
+ignorepyflakes=$(git config hooks.ignorepyflakes)
+if [ "$ignorepyflakes" != "true" ]; then
+    echo "Checking pyflakes..."
+    # Run pyflakes on all touched .py files
+    pyflakesissues=0
+    for file in $(exec git diff --staged --name-only | grep '\.py$'); do
+        # If this repo has a pyflakes-blacklist.txt, obey it
+        if [ -e "pyflakes-blacklist.txt" ]; then
+            if echo "$file" | grep -Ff pyflakes-blacklist.txt -q; then
+                continue
+            fi
+        fi
+
+        if [[ -e "$file" && ! -h "$file" ]] && ! pyflakes "$file"; then
+            pyflakesissues=1
+        fi
+    done
+    if [ $pyflakesissues == 1 ]; then
+        echo "pyflakes reported issues."
+        failures=1
+    fi
+fi
+
+ignorepep8=$(git config hooks.ignorepep8)
+if [ "$ignorepep8" != "true" ]; then
+    echo "Checking pep8..."
+    # Run pep8 on all touched .py files
+    pep8issues=0
+    for file in $(exec git diff --staged --name-only | grep '\.py$'); do
+        # If this repo has a pep8-blacklist.txt, obey it
+        if [ -e "pep8-blacklist.txt" ]; then
+            if echo "$file" | grep -Ff pep8-blacklist.txt -q; then
+                continue
+            fi
+        fi
+
+        if [[ -e "$file" && ! -h "$file" ]] && ! pep8 --max-line-length=119 "$file"; then
+            pep8issues=1
+        fi
+    done
+    if [ $pep8issues == 1 ]; then
+        echo "pep8 reported issues."
+        failures=1
+    fi
+fi
+
+ignorewhitespace=$(git config hooks.ignorewhitespace)
+if [ "$ignorewhitespace" != "true" ]; then
+    echo "Checking whitespace..."
+    if git rev-parse --verify HEAD >/dev/null 2>&1; then
+        against=HEAD
+    else
+    # Initial commit: diff against an empty tree object
+        against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+    fi
+    # Find files with trailing whitespace
+    for FILE in $(exec git diff-index --check --cached $against -- | sed '/^[+-]/d' | sed 's/:[0-9][0-9]*:.*//' | uniq); do
+        if [[ -f "$FILE" && ! -h "$FILE" ]]; then
+            echo "Whitespace errors found in $FILE - fixing..."
+            # Fix trailing space
+            sed -i 's/[[:space:]]*$//' "$FILE"
+            # Fix space-before-tab
+            perl -i -p -e 's/(?<! ) {1,3}\t(?=\t*\s*(\S.*|$))/\t/' "$FILE"
+            # Fix empty lines at end of file
+            sed -i -e :a -e '/^\n*$/N;/\n$/ba' "$FILE"
+            sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$FILE"
+            whitespacerrors="true"
+        fi
+    done
+    if [ "$whitespacerrors" == "true" ]; then
+        echo
+        echo "One or more whitespace errors were detected and automatically fixed."
+        echo "Please verify that the result was correct, 'git add' the results, and then try to commit again."
+        echo
+        failures=1
+    fi
+fi
+
+if [ $failures -ne 0 ]; then
+    echo "(Use 'git commit --no-verify' to bypass.)"
+    exit 1
+fi
