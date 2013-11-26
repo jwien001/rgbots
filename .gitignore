@@ -20,6 +20,7 @@ lib
 lib64
 local
 include
+share
 __pycache__
 
 # Installer logs
